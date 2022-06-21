@@ -50,12 +50,14 @@ Use telegraf v1.15 or above so that execd processor is available.
 
 
 # Example output
-Using vm_tags=\["environment"\] could result in:
+
+Metrics will have environment tag added to them by using vsphere_categories=\["environment"\]:
 ```plain
 vsphere_vm_cpu,clustername=DC0_C0,environment=PRE,esxhostname=DC0_C0_H0,guest=other,host=host.example.com,moid=vm-44,os=Mac,source=DC0_C0_RP0_VM1,vcenter=localhost:8989,vmname=DC0_C0_RP0_VM1 demand_average=328i,run_summation=3481i,ready_summation=122i,usage_average=7.95,used_summation=2167i 1535660339000000000
 vsphere_vm_net,clustername=DC0_C0,environment=PRE,esxhostname=DC0_C0_H0,guest=other,host=host.example.com,moid=vm-44,os=Mac,source=DC0_C0_RP0_VM1,vcenter=localhost:8989,vmname=DC0_C0_RP0_VM1 bytesTx_average=282i,bytesRx_average=196i 1535660339000000000
 vsphere_vm_virtualDisk,clustername=DC0_C0,environment=PRE,esxhostname=DC0_C0_H0,guest=other,host=host.example.com,moid=vm-44,os=Mac,source=DC0_C0_RP0_VM1,vcenter=localhost:8989,vmname=DC0_C0_RP0_VM1 write_average=321i,read_average=13i 1535660339000000000
 ```
+A tag category called 'environment' with tag name set as 'PRE' was previously configured for DC0_C0_RP0_VM1 VM.
 
 # Build Instructions
 
