@@ -1,0 +1,47 @@
+version: '3'
+
+includes:
+  linux: Taskfile_linux.yml
+  windows: Taskfile_windows.yml
+ 
+vars:
+  GIT_COMMIT:
+    sh: git log -n 1 --format=%h
+
+  GO_PACKAGES:
+    sh: go list ./...
+
+env:
+  CGO_ENABLED: '0'
+
+tasks:
+  default:
+    cmds:
+      - task: test
+
+  mod:
+    desc: Downloads and tidy Go modules
+    cmds:
+      - go mod init
+      - go mod tidy
+
+  lint:
+    desc: Runs golint
+    cmds:
+      - golangci-lint run
+    silent: true
+
+  test:
+    desc: Runs test suite
+    cmds:
+      - go test {{catLines .GO_PACKAGES}}
+
+  test-release:
+    desc: Tests release process without publishing
+    cmds:
+      - goreleaser --snapshot --rm-dist
+
+  release:
+    desc: Release with goreleaser
+    cmds:
+      - goreleaser release --rm-dist
