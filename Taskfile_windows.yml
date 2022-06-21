@@ -1,0 +1,12 @@
+version: '3'
+
+tasks:
+  build:
+    desc: Build vctags
+    cmds:
+      - go build -v -ldflags="-w -s -X main.commit={{.GIT_COMMIT}}" -o bin/vctags.exe ./cmd/main.go
+
+  clean:
+    desc: Cleans temp files and folders
+    cmds:
+      - rmdir /s dist
