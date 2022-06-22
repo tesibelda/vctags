@@ -9,6 +9,8 @@ package vctags
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"net/url"
 	"time"
 
@@ -24,10 +26,10 @@ type vcTags struct {
 	Username      string          `toml:"username"`
 	Password      string          `toml:"password"`
 	Timeout       config.Duration `toml:"timeout"`
-	Log           telegraf.Logger `toml:"-"`
 	VcCategories  []string        `toml:"vsphere_categories"`
 	MoIdTag       string          `toml:"metric_moid_tag"`
 	CacheInterval config.Duration `toml:"cache_interval"`
+	Debug         bool            `toml:"debug"`
 
 	url         *url.URL
 	cache       *VcTagCache
@@ -53,6 +55,8 @@ var sampleConfig = `
   # metric_moid_tag = "moid"
   ## vSphere tag cache refresh interval
   # cache_interval = "10m"
+  ## Enable debug
+  # debug = falss
 `
 
 // init initializes shim with vcstags processor by importing from main
@@ -84,6 +88,7 @@ func (p *vcTags) Init() error {
 		return err
 	}
 	p.cache.SetCategoryFilter(p.VcCategories)
+	p.cache.SetDebug(p.Debug)
 
 	return nil
 }
@@ -116,7 +121,14 @@ func (p *vcTags) Add(m telegraf.Metric, acc telegraf.Accumulator) error {
 		if ok {
 			for cat, tag := range tags {
 				m.AddTag(cat, tag)
+				if p.Debug {
+					fmt.Fprintf(os.Stderr, "DEBUG enriched metric for %s = %s with tag %s\n", p.MoIdTag, moid, cat)
+				}
 			}
+		}
+	} else {
+		if p.Debug {
+			fmt.Fprintf(os.Stderr, "DEBUG metric with name %s did not have %s tag\n", m.Name(), p.MoIdTag)
 		}
 	}
 	acc.AddMetric(m)

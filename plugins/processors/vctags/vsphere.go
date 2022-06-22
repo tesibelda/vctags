@@ -1,4 +1,4 @@
-// This file contains vctags plugin package
+// This file contains vctags plugin package with vsphere helper functions
 //
 // Author: Tesifonte Belda
 // License: GNU-GPL3 license
@@ -177,6 +177,7 @@ func vcGetMoListTags(
 	return attached, nil
 }
 
+// isElementExist returns true if a string slice contains a given string
 func isElementExist(s []string, str string) bool {
 	for _, v := range s {
 		if v == str {

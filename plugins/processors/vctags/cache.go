@@ -1,4 +1,4 @@
-// This file contains vctags plugin package
+// This file contains vctags plugin package with cache definitions
 //
 // Author: Tesifonte Belda
 // License: GNU-GPL3 license
@@ -29,6 +29,7 @@ type VcTagCache struct {
 	categoyFilter []string
 	invClient     *vim25.Client
 	restClient    *rest.Client
+	debug         bool
 }
 
 // NewCache creates a new cache instance for vSphere objects tags
@@ -75,13 +76,17 @@ func (c *VcTagCache) populateCache(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	//fmt.Fprintf(os.Stdout, "DEBUG got categories list, it is %d long\n", len(cats))
+	if c.debug {
+		fmt.Fprintf(os.Stderr, "DEBUG got categories list, it is %d long\n", len(cats))
+	}
 
 	vms, err := vcGetVMList(ctxq, c.invClient)
 	if err != nil {
 		return err
 	}
-	//fmt.Fprintf(os.Stdout, "DEBUG got vm list, it is %d long\n", len(vms))
+	if c.debug {
+		fmt.Fprintf(os.Stderr, "DEBUG got vm list, it is %d long\n", len(vms))
+	}
 
 	refs := make([]mo.Reference, len(vms))
 	for i := range vms {
@@ -91,7 +96,9 @@ func (c *VcTagCache) populateCache(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	//fmt.Fprintf(os.Stdout, "DEBUG got vm tags list, it is %d long\n", len(vmatagsList))
+	if c.debug {
+		fmt.Fprintf(os.Stderr, "DEBUG got vm tags list, it is %d long\n", len(vmatagsList))
+	}
 
 	c.cache.Clear()
 	for _, vmatags := range vmatagsList {
@@ -107,7 +114,9 @@ func (c *VcTagCache) populateCache(ctx context.Context) error {
 			c.cache.Set(vmatags.ObjectID.Reference().Value, mtags)
 		}
 	}
-	//fmt.Fprintf(os.Stdout, "DEBUG got vm tags, now cache is %d long\n", c.cache.Count())
+	if c.debug {
+		fmt.Fprintf(os.Stderr, "DEBUG got vm tags, now cache is %d long\n", c.cache.Count())
+	}
 
 	return err
 }
@@ -155,4 +164,9 @@ func (c *VcTagCache) Run(ctx context.Context, pollInterval time.Duration) {
 // SetCategoryFilter allows configuring a filter of tag categories to read from vSphere
 func (c *VcTagCache) SetCategoryFilter(cats []string) {
 	c.categoyFilter = cats
+}
+
+// SetCategoryFilter allows configuring a filter of tag categories to read from vSphere
+func (c *VcTagCache) SetDebug(db bool) {
+	c.debug = db
 }

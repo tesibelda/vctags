@@ -36,6 +36,8 @@ Use telegraf v1.15 or above so that execd processor is available.
   # metric_moid_tag = "moid"
   ## vSphere tag cache refresh interval
   # cache_interval = "10m"
+  ## Enable debug
+  # debug = falss
 ```
 
 * Edit telegraf's execd processor configuration as needed. Example:
