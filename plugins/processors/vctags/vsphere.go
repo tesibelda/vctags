@@ -9,13 +9,14 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"strings"
 
+	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/property"
 	"github.com/vmware/govmomi/session/cache"
 	"github.com/vmware/govmomi/vapi/rest"
 	"github.com/vmware/govmomi/vapi/tags"
 	"github.com/vmware/govmomi/view"
-	"github.com/vmware/govmomi/vim25"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
@@ -33,39 +34,20 @@ const (
 func vcNewClient(
 	ctx context.Context,
 	u *url.URL,
-	tlsca string,
 	skip bool,
-) (*vim25.Client, error) {
+) (*govmomi.Client, error) {
 	var err error
 
-	if u == nil {
+	if u == nil || u.User == nil {
 		return nil, fmt.Errorf(Error_URLNil)
 	}
 
-	// Share govc's session cache
-	s := &cache.Session{
-		URL:      u,
-		Insecure: skip,
-	}
-
-	c := new(vim25.Client)
-	if len(tlsca) > 0 {
-		soapClient := soap.NewClient(u, false)
-		if err = soapClient.SetRootCAs(tlsca); err != nil {
-			return nil, err
-		}
-		c, err = vim25.NewClient(ctx, soapClient)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	err = s.Login(ctx, c, nil)
+	c, err := govmomi.NewClient(ctx, u, skip)
 	if err != nil {
 		return nil, err
 	}
 
-	if !c.IsVC() {
+	if !c.Client.IsVC() {
 		return nil, fmt.Errorf(Error_NotVC)
 	}
 
@@ -77,27 +59,37 @@ func vcNewRestClient(
 	ctx context.Context,
 	u *url.URL,
 	skip bool,
-	vc *vim25.Client,
+	c *govmomi.Client,
 ) (*rest.Client, error) {
+	if c == nil || c.Client == nil {
+		return nil, fmt.Errorf(Error_NoClient)
+	}
 	// Share govc's session cache
 	s := &cache.Session{
 		URL:      u,
 		Insecure: skip,
 	}
 
-	c := rest.NewClient(vc)
-	err := s.Login(ctx, c, nil)
+	rc := rest.NewClient(c.Client)
+	err := s.Login(ctx, rc, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	return c, nil
+	return rc, nil
+}
+
+// vcCloseClient closes govmomi client
+func vcCloseClient(ctx context.Context, c *govmomi.Client) {
+	if c != nil {
+		_ = c.Logout(ctx) //nolint: no worries for logout errors
+	}
 }
 
 // vcCloseRestClient closes vSphere rest client
-func vcCloseRestClient(ctx context.Context, c *rest.Client) {
-	if c != nil {
-		_ = c.Logout(ctx) //nolint: no worries for logout errors
+func vcCloseRestClient(ctx context.Context, rc *rest.Client) {
+	if rc != nil {
+		_ = rc.Logout(ctx) //nolint: no worries for logout errors
 	}
 }
 
@@ -116,12 +108,12 @@ func vcPaseURL(vcenterUrl, user, pass string) (*url.URL, error) {
 }
 
 // vcGetVMList return the list of vms
-func vcGetVMList(ctx context.Context, vc *vim25.Client) ([]types.ManagedObjectReference, error) {
-	if vc == nil {
+func vcGetVMList(ctx context.Context, c *govmomi.Client) ([]types.ManagedObjectReference, error) {
+	if c == nil || c.Client == nil {
 		return nil, fmt.Errorf(Error_NoClient)
 	}
 
-	v, err := view.NewManager(vc).CreateContainerView(ctx, vc.ServiceContent.RootFolder, []string{"VirtualMachine"}, true)
+	v, err := view.NewManager(c.Client).CreateContainerView(ctx, c.Client.ServiceContent.RootFolder, []string{"VirtualMachine"}, true)
 	if err != nil {
 		return nil, err
 	}
@@ -175,6 +167,30 @@ func vcGetMoListTags(
 	}
 
 	return attached, nil
+}
+
+// vcIsActive returns true if the vCenter connection is active
+func vcIsActive(ctx context.Context, c *govmomi.Client) bool {
+	var (
+		err error
+		ok  bool
+	)
+
+	if c == nil || !c.Client.Valid() {
+		return false
+	}
+
+	ok, err = c.SessionManager.SessionIsActive(ctx)
+	if err != nil {
+		// skip permission denied error for SessionIsActive call
+		if strings.Contains(err.Error(), "Permission") {
+			return true
+		} else {
+			return false
+		}
+	}
+
+	return ok
 }
 
 // isElementExist returns true if a string slice contains a given string

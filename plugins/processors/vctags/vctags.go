@@ -44,8 +44,6 @@ var sampleConfig = `
   password = "secret"
   ## total vSphere requests timeout
   # timeout = "3m"
-  ## Optional TLS CA full file path
-  # tls_ca = ""
   ## Use SSL but skip chain & host verification
   # insecure_skip_verify = false
 
@@ -56,7 +54,7 @@ var sampleConfig = `
   ## vSphere tag cache refresh interval
   # cache_interval = "10m"
   ## Enable debug
-  # debug = falss
+  # debug = false
 `
 
 // init initializes shim with vcstags processor by importing from main
@@ -83,7 +81,7 @@ func (p *vcTags) Init() error {
 		return err
 	}
 
-	p.cache, err = NewCache(p.url, p.TLSCA, p.InsecureSkipVerify, time.Duration(p.Timeout))
+	p.cache, err = NewCache(p.url, p.InsecureSkipVerify, time.Duration(p.Timeout))
 	if err != nil {
 		return err
 	}

@@ -14,33 +14,31 @@ import (
 
 	"github.com/TwiN/gocache/v2"
 
+	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/vapi/rest"
 	"github.com/vmware/govmomi/vapi/tags"
-	"github.com/vmware/govmomi/vim25"
 	"github.com/vmware/govmomi/vim25/mo"
 )
 
 type VcTagCache struct {
 	cache         *gocache.Cache
 	urlp          *url.URL
-	tlsca         string
 	insecureSkip  bool
 	timeout       time.Duration
 	categoyFilter []string
-	invClient     *vim25.Client
+	invClient     *govmomi.Client
 	restClient    *rest.Client
 	debug         bool
 }
 
 // NewCache creates a new cache instance for vSphere objects tags
-func NewCache(u *url.URL, tlsca string, skip bool, t time.Duration) (*VcTagCache, error) {
+func NewCache(u *url.URL, skip bool, t time.Duration) (*VcTagCache, error) {
 	if u == nil {
 		return nil, fmt.Errorf(Error_URLNil)
 	}
 	n := &VcTagCache{
 		cache:        gocache.NewCache().WithMaxSize(0),
 		urlp:         u,
-		tlsca:        tlsca,
 		insecureSkip: skip,
 		timeout:      t,
 	}
@@ -52,24 +50,12 @@ func NewCache(u *url.URL, tlsca string, skip bool, t time.Duration) (*VcTagCache
 func (c *VcTagCache) populateCache(ctx context.Context) error {
 	var err error
 
-	ctxq, cancelq := context.WithTimeout(ctx, time.Duration(c.timeout)) //nolint: cancel not need
-	defer cancelq()
+	if err = c.keepSessionAlive(ctx); err != nil {
+		return err
+	}
 
-	if c.invClient == nil {
-		c.invClient, err = vcNewClient(ctxq, c.urlp, c.tlsca, c.insecureSkip)
-		if err != nil {
-			c.invClient = nil
-			c.restClient = nil
-			return err
-		}
-	}
-	if c.restClient == nil {
-		c.restClient, err = vcNewRestClient(ctxq, c.urlp, c.insecureSkip, c.invClient)
-		if err != nil {
-			c.restClient = nil
-			return err
-		}
-	}
+	ctxq, cancelq := context.WithTimeout(ctx, time.Duration(c.timeout))
+	defer cancelq()
 
 	m := tags.NewManager(c.restClient)
 	cats, err := vcFilterCats(ctxq, m, c.categoyFilter)
@@ -121,6 +107,37 @@ func (c *VcTagCache) populateCache(ctx context.Context) error {
 	return err
 }
 
+// populateCache populates the cache with selected tags from vSphere objects
+//  currently only VMs
+func (c *VcTagCache) keepSessionAlive(ctx context.Context) error {
+	var err error
+
+	if c.invClient == nil || !vcIsActive(ctx, c.invClient) {
+		if c.debug {
+			fmt.Fprintf(os.Stderr, "DEBUG session with vCenter %s is not active\n", c.urlp.Host)
+		}
+		c.restClient = nil
+		c.invClient, err = vcNewClient(ctx, c.urlp, c.insecureSkip)
+		if err != nil {
+			c.invClient = nil
+			return err
+		}
+	}
+
+	if c.restClient == nil {
+		c.restClient, err = vcNewRestClient(ctx, c.urlp, c.insecureSkip, c.invClient)
+		if err != nil {
+			c.restClient = nil
+			return err
+		}
+		if c.debug {
+			fmt.Fprintf(os.Stderr, "DEBUG new session opened with vCenter %s\n", c.urlp.Host)
+		}
+	}
+
+	return nil
+}
+
 // Get returns tags from the cache corresponding to the given moid
 func (c *VcTagCache) Get(k string) (map[string]string, bool) {
 	if c.cache == nil {
@@ -152,6 +169,9 @@ func (c *VcTagCache) Run(ctx context.Context, pollInterval time.Duration) {
 		select {
 		case <-ctx.Done():
 			vcCloseRestClient(ctx, c.restClient)
+			c.restClient = nil
+			vcCloseClient(ctx, c.invClient)
+			c.invClient = nil
 			return
 		case <-t.C:
 			if err := c.populateCache(ctx); err != nil {

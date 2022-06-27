@@ -25,8 +25,6 @@ Use telegraf v1.15 or above so that execd processor is available.
   password = "secret"
   ## total vSphere requests timeout
   # timeout = "3m"
-  ## Optional TLS CA full file path
-  # tls_ca = ""
   ## Use SSL but skip chain & host verification
   # insecure_skip_verify = false
 
@@ -37,7 +35,7 @@ Use telegraf v1.15 or above so that execd processor is available.
   ## vSphere tag cache refresh interval
   # cache_interval = "10m"
   ## Enable debug
-  # debug = falss
+  # debug = false
 ```
 
 * Edit telegraf's execd processor configuration as needed. Example:
