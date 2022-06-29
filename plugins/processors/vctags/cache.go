@@ -62,19 +62,15 @@ func (c *VcTagCache) populateCache(ctx context.Context) error {
 	if err != nil {
 		vcCloseRestClient(ctx, c.restClient)
 		c.restClient = nil
-		return err
+		return fmt.Errorf("getting categories: %w", err)
 	}
-	if c.debug {
-		fmt.Fprintf(os.Stderr, "DEBUG got categories list, it is %d long\n", len(cats))
-	}
+	c.LogDebug("got categories list, it is %d long", len(cats))
 
 	vms, err := vcGetVMList(ctxq, c.invClient)
 	if err != nil {
-		return err
+		return fmt.Errorf("getting VM list: %w", err)
 	}
-	if c.debug {
-		fmt.Fprintf(os.Stderr, "DEBUG got vm list, it is %d long\n", len(vms))
-	}
+	c.LogDebug("got vm list, it is %d long", len(vms))
 
 	refs := make([]mo.Reference, len(vms))
 	for i := range vms {
@@ -82,11 +78,9 @@ func (c *VcTagCache) populateCache(ctx context.Context) error {
 	}
 	vmatagsList, err := vcGetMoListTags(ctxq, m, refs)
 	if err != nil {
-		return err
+		return fmt.Errorf("getting VM tags: %w", err)
 	}
-	if c.debug {
-		fmt.Fprintf(os.Stderr, "DEBUG got vm tags list, it is %d long\n", len(vmatagsList))
-	}
+	c.LogDebug("got vm tags list, it is %d long", len(vmatagsList))
 
 	c.cache.Clear()
 	for _, vmatags := range vmatagsList {
@@ -102,9 +96,7 @@ func (c *VcTagCache) populateCache(ctx context.Context) error {
 			c.cache.Set(vmatags.ObjectID.Reference().Value, mtags)
 		}
 	}
-	if c.debug {
-		fmt.Fprintf(os.Stderr, "DEBUG got vm tags, now cache is %d long\n", c.cache.Count())
-	}
+	c.LogDebug("got vm tags, now cache is %d long", c.cache.Count())
 
 	return err
 }
@@ -125,9 +117,7 @@ func (c *VcTagCache) keepSoapSessionAlive(ctx context.Context) error {
 		var err error
 		c.invClient, err = vcNewClient(ctx, c.urlp, c.insecureSkip)
 		if err != nil {
-			if c.debug {
-				fmt.Fprintf(os.Stderr, "DEBUG created new soap session with vCenter %s\n", c.urlp.Host)
-			}
+			c.LogDebug("created new soap session with vCenter %s", c.urlp.Host)
 			c.invClient = nil
 			return err
 		}
@@ -145,9 +135,7 @@ func (c *VcTagCache) keepRestSessionAlive(ctx context.Context) error {
 			c.restClient = nil
 			return err
 		}
-		if c.debug {
-			fmt.Fprintf(os.Stderr, "DEBUG new rest session opened with vCenter %s\n", c.urlp.Host)
-		}
+		c.LogDebug("new rest session opened with vCenter %s", c.urlp.Host)
 	}
 
 	return nil
@@ -174,7 +162,7 @@ func (c *VcTagCache) Run(ctx context.Context, pollInterval time.Duration) {
 
 	if c.cache.Count() == 0 {
 		if err := c.populateCache(ctx); err != nil {
-			fmt.Fprintf(os.Stderr, "ERROR gathering vSphere tags: %s\n", err)
+			c.LogError("gathering vSphere tags: %s", err)
 		}
 	}
 
@@ -191,7 +179,7 @@ func (c *VcTagCache) Run(ctx context.Context, pollInterval time.Duration) {
 			return
 		case <-t.C:
 			if err := c.populateCache(ctx); err != nil {
-				fmt.Fprintf(os.Stderr, "ERROR gathering vSphere tags: %s\n", err)
+				c.LogError("gathering vSphere tags: %s", err)
 			}
 		}
 	}
@@ -205,4 +193,26 @@ func (c *VcTagCache) SetCategoryFilter(cats []string) {
 // SetCategoryFilter allows configuring a filter of tag categories to read from vSphere
 func (c *VcTagCache) SetDebug(db bool) {
 	c.debug = db
+}
+
+// LogDebug logs provided message as debug if it is enabled
+func (c *VcTagCache) LogDebug(format string, v ...any) {
+	if c.debug {
+		switch { 
+		case len(v) == 0:
+			fmt.Fprintf(os.Stderr, "DEGUB " + format + "\n")
+		default:
+			fmt.Fprintf(os.Stderr, "DEGUB " + format + "\n", v...)
+		}
+	}
+}
+
+// LogError logs provided message as error
+func (c *VcTagCache) LogError(format string, v ...any) {
+	switch { 
+	case len(v) == 0:
+		fmt.Fprintf(os.Stderr, "ERROR " + format + "\n")
+	default:
+		fmt.Fprintf(os.Stderr, "ERROR " + format + "\n", v...)
+	}
 }
