@@ -169,8 +169,8 @@ func vcGetMoListTags(
 	return attached, nil
 }
 
-// vcIsActive returns true if the vCenter connection is active
-func vcIsActive(ctx context.Context, c *govmomi.Client) bool {
+// vcSoapIsActive returns true if the vCenter soap session is active
+func vcSoapIsActive(ctx context.Context, c *govmomi.Client) bool {
 	var (
 		err error
 		ok  bool
@@ -191,6 +191,20 @@ func vcIsActive(ctx context.Context, c *govmomi.Client) bool {
 	}
 
 	return ok
+}
+
+// vcRestIsActive returns true if the vCenter rest session is active
+func vcRestIsActive(ctx context.Context, rc *rest.Client) bool {
+	if rc == nil {
+		return false
+	}
+
+	s, err := rc.Session(ctx)
+	if err != nil || s == nil {
+		return false
+	}
+
+	return true
 }
 
 // isElementExist returns true if a string slice contains a given string

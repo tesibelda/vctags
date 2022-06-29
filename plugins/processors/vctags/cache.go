@@ -50,7 +50,7 @@ func NewCache(u *url.URL, skip bool, t time.Duration) (*VcTagCache, error) {
 func (c *VcTagCache) populateCache(ctx context.Context) error {
 	var err error
 
-	if err = c.keepSessionAlive(ctx); err != nil {
+	if err = c.keepSessionsAlive(ctx); err != nil {
 		return err
 	}
 
@@ -60,6 +60,8 @@ func (c *VcTagCache) populateCache(ctx context.Context) error {
 	m := tags.NewManager(c.restClient)
 	cats, err := vcFilterCats(ctxq, m, c.categoyFilter)
 	if err != nil {
+		vcCloseRestClient(ctx, c.restClient)
+		c.restClient = nil
 		return err
 	}
 	if c.debug {
@@ -107,36 +109,50 @@ func (c *VcTagCache) populateCache(ctx context.Context) error {
 	return err
 }
 
-// populateCache populates the cache with selected tags from vSphere objects
-//  currently only VMs
-func (c *VcTagCache) keepSessionAlive(ctx context.Context) error {
-	var err error
+// keepSessionsAlive keeps vCenter sessions alive
+func (c *VcTagCache) keepSessionsAlive(ctx context.Context) error {
+	err := c.keepSoapSessionAlive(ctx)
+	if err != nil {
+		return err
+	}
 
-	if c.invClient == nil || !vcIsActive(ctx, c.invClient) {
-		if c.debug {
-			fmt.Fprintf(os.Stderr, "DEBUG session with vCenter %s is not active\n", c.urlp.Host)
-		}
-		c.restClient = nil
+	return c.keepRestSessionAlive(ctx)
+}
+
+// keepSoapSessionAlive keeps vCenter soap session alive
+func (c *VcTagCache) keepSoapSessionAlive(ctx context.Context) error {
+	if c.invClient == nil || !vcSoapIsActive(ctx, c.invClient) {
+		var err error
 		c.invClient, err = vcNewClient(ctx, c.urlp, c.insecureSkip)
 		if err != nil {
+			if c.debug {
+				fmt.Fprintf(os.Stderr, "DEBUG created new soap session with vCenter %s\n", c.urlp.Host)
+			}
 			c.invClient = nil
 			return err
 		}
 	}
 
-	if c.restClient == nil {
+	return nil
+}
+
+// keepRestSessionAlive tries to keep vCenter rest session alive
+func (c *VcTagCache) keepRestSessionAlive(ctx context.Context) error {
+	if c.restClient == nil || !vcRestIsActive(ctx, c.restClient) {
+		var err error
 		c.restClient, err = vcNewRestClient(ctx, c.urlp, c.insecureSkip, c.invClient)
 		if err != nil {
 			c.restClient = nil
 			return err
 		}
 		if c.debug {
-			fmt.Fprintf(os.Stderr, "DEBUG new session opened with vCenter %s\n", c.urlp.Host)
+			fmt.Fprintf(os.Stderr, "DEBUG new rest session opened with vCenter %s\n", c.urlp.Host)
 		}
 	}
 
 	return nil
 }
+
 
 // Get returns tags from the cache corresponding to the given moid
 func (c *VcTagCache) Get(k string) (map[string]string, bool) {
