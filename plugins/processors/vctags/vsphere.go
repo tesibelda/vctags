@@ -9,7 +9,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"strings"
+	"time"
 
 	"github.com/vmware/govmomi"
 	"github.com/vmware/govmomi/property"
@@ -17,6 +17,7 @@ import (
 	"github.com/vmware/govmomi/vapi/rest"
 	"github.com/vmware/govmomi/vapi/tags"
 	"github.com/vmware/govmomi/view"
+	"github.com/vmware/govmomi/vim25/methods"
 	"github.com/vmware/govmomi/vim25/mo"
 	"github.com/vmware/govmomi/vim25/soap"
 	"github.com/vmware/govmomi/vim25/types"
@@ -171,26 +172,15 @@ func vcGetMoListTags(
 
 // vcSoapIsActive returns true if the vCenter soap session is active
 func vcSoapIsActive(ctx context.Context, c *govmomi.Client) bool {
-	var (
-		err error
-		ok  bool
-	)
-
 	if c == nil || !c.Client.Valid() {
 		return false
 	}
 
-	ok, err = c.SessionManager.SessionIsActive(ctx)
-	if err != nil {
-		// skip permission denied error for SessionIsActive call
-		if strings.Contains(err.Error(), "Permission") {
-			return true
-		} else {
-			return false
-		}
-	}
+	ctx1, cancel1 := context.WithTimeout(ctx, time.Duration(5 * time.Second))
+	defer cancel1()
+	_, err := methods.GetCurrentTime(ctx1, c.Client) //nolint no need current time
 
-	return ok
+	return err == nil
 }
 
 // vcRestIsActive returns true if the vCenter rest session is active
