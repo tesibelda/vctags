@@ -9,16 +9,20 @@ package vctags
 
 import (
 	"context"
-	"fmt"
-	"os"
 	"net/url"
+	"os"
 	"time"
 
 	"github.com/influxdata/telegraf"
 	"github.com/influxdata/telegraf/config"
 	"github.com/influxdata/telegraf/plugins/common/tls"
 	"github.com/influxdata/telegraf/plugins/processors"
+
+	"github.com/kpango/glg"
 )
+
+// PlugName contains the name of this plugin
+const PlugName string = "vctags"
 
 type vcTags struct {
 	tls.ClientConfig
@@ -35,6 +39,7 @@ type vcTags struct {
 	cache       *VcTagCache
 	cacheCtx    context.Context
 	cacheCancel context.CancelFunc
+	logger      *glg.Glg
 }
 
 var sampleConfig = `
@@ -59,7 +64,7 @@ var sampleConfig = `
 
 // init initializes shim with vcstags processor by importing from main
 func init() {
-	processors.AddStreaming("vctags", func() telegraf.StreamingProcessor {
+	processors.AddStreaming(PlugName, func() telegraf.StreamingProcessor {
 		return &vcTags{
 			VCenter:       "https://vcenter.local/sdk",
 			Username:      "user@corp.local",
@@ -81,12 +86,18 @@ func (p *vcTags) Init() error {
 		return err
 	}
 
-	p.cache, err = NewCache(p.url, p.InsecureSkipVerify, time.Duration(p.Timeout))
+	p.logger = newLogger(p.Debug)
+
+	p.cache, err = NewCache(
+		p.url,
+		p.InsecureSkipVerify,
+		time.Duration(p.Timeout),
+		p.logger,
+	)
 	if err != nil {
 		return err
 	}
 	p.cache.SetCategoryFilter(p.VcCategories)
-	p.cache.SetDebug(p.Debug)
 
 	return nil
 }
@@ -109,8 +120,8 @@ func (p *vcTags) Stop() error {
 func (p *vcTags) Add(m telegraf.Metric, acc telegraf.Accumulator) error {
 	var (
 		moid string
-		ok   bool
 		tags map[string]string
+		ok   bool
 	)
 
 	moid, ok = m.GetTag(p.MoIdTag)
@@ -119,15 +130,20 @@ func (p *vcTags) Add(m telegraf.Metric, acc telegraf.Accumulator) error {
 		if ok {
 			for cat, tag := range tags {
 				m.AddTag(cat, tag)
-				if p.Debug {
-					fmt.Fprintf(os.Stderr, "DEBUG enriched metric for %s = %s with tag %s\n", p.MoIdTag, moid, cat)
-				}
+				p.logger.Debugf(         //nolint no error
+					"enriched metric for %s = %s with tag %s",
+					p.MoIdTag,
+					moid,
+					cat,
+				)
 			}
 		}
 	} else {
-		if p.Debug {
-			fmt.Fprintf(os.Stderr, "DEBUG metric with name %s did not have %s tag\n", m.Name(), p.MoIdTag)
-		}
+		p.logger.Debugf(                //nolint no error
+			"metric with name %s did not have %s tag",
+			m.Name(),
+			p.MoIdTag,
+		)
 	}
 	acc.AddMetric(m)
 
@@ -142,4 +158,20 @@ func (p *vcTags) SampleConfig() string {
 // Description shows vctags telegraf plugin description
 func (p *vcTags) Description() string {
 	return "Adds vSphere object's tags to incoming metrics"
+}
+
+// newLogger returns a logger
+func newLogger(d bool) *glg.Glg {
+	var l glg.LEVEL
+
+	logger := glg.New()
+	logger = logger.SetWriter(os.Stderr).SetMode(glg.WRITER)
+	if d {
+		l = glg.DEBG
+	} else {
+		l = glg.WARN
+	}
+	logger = logger.SetLevel(l).DisableTimestamp().DisableColor()
+	logger = logger.SetLineTraceMode(glg.TraceLineShort)
+	return logger
 }

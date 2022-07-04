@@ -11,7 +11,7 @@ import (
 	"os"
 
 	"github.com/influxdata/telegraf/plugins/common/shim"
-	_ "github.com/tesibelda/vctags/plugins/processors/vctags"
+	"github.com/tesibelda/vctags/plugins/processors/vctags"
 )
 
 var configFile = flag.String("config", "", "path to the config file for this plugin")
@@ -26,7 +26,7 @@ func main() {
 
 	flag.Parse()
 	if *showVersion {
-		fmt.Println("vctags", Version)
+		fmt.Println(vctags.PlugName, Version)
 		os.Exit(0)
 	}
 
@@ -38,7 +38,6 @@ func main() {
 	}
 
 	// run a single plugin until stdin closes or we receive a termination signal
-	//if err = s.Run(shim.PollIntervalDisabled); err != nil {
 	if err = s.RunProcessor(); err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR running telegraf shim: %s\n", err)
 		os.Exit(2)

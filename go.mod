@@ -5,6 +5,7 @@ go 1.18
 require (
 	github.com/TwiN/gocache/v2 v2.0.1
 	github.com/influxdata/telegraf v1.23.0
+	github.com/kpango/glg v1.6.11
 	github.com/vmware/govmomi v0.28.0
 )
 
@@ -19,12 +20,14 @@ require (
 	github.com/fatih/color v1.10.0 // indirect
 	github.com/go-logfmt/logfmt v0.5.0 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
+	github.com/goccy/go-json v0.9.7 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/gosnmp/gosnmp v1.34.0 // indirect
 	github.com/influxdata/line-protocol/v2 v2.2.1 // indirect
 	github.com/influxdata/toml v0.0.0-20190415235208-270119a8ce65 // indirect
+	github.com/kpango/fastime v1.1.4 // indirect
 	github.com/mattn/go-colorable v0.1.8 // indirect
 	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369 // indirect
