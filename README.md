@@ -1,6 +1,7 @@
 # vctags
 
 vctags is an execd processor plugin for [Telegraf](https://github.com/influxdata/telegraf) that populates metrics with selected tags from VMware vSphere objects (using [govmomi library](https://github.com/vmware/govmomi/)). Currently only VirtualMachine objects are supported.
+vctags makes use of goroutines and an internal cache (updated every cache_interval) to provide good performance while enriching metrics.
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](http://www.gnu.org/licenses/gpl-3.0)
 [![Go Report Card](https://goreportcard.com/badge/github.com/tesibelda/vctags)](https://goreportcard.com/report/github.com/tesibelda/vctags)
@@ -57,7 +58,7 @@ vsphere_vm_cpu,clustername=DC0_C0,environment=PRE,esxhostname=DC0_C0_H0,guest=ot
 vsphere_vm_net,clustername=DC0_C0,environment=PRE,esxhostname=DC0_C0_H0,guest=other,host=host.example.com,moid=vm-44,os=Mac,source=DC0_C0_RP0_VM1,vcenter=localhost:8989,vmname=DC0_C0_RP0_VM1 bytesTx_average=282i,bytesRx_average=196i 1535660339000000000
 vsphere_vm_virtualDisk,clustername=DC0_C0,environment=PRE,esxhostname=DC0_C0_H0,guest=other,host=host.example.com,moid=vm-44,os=Mac,source=DC0_C0_RP0_VM1,vcenter=localhost:8989,vmname=DC0_C0_RP0_VM1 write_average=321i,read_average=13i 1535660339000000000
 ```
-A tag category called 'environment' with tag name set as 'PRE' was previously configured for DC0_C0_RP0_VM1 VM.
+A tag category called 'environment' with tag name set as 'PRE' was previously configured for DC0_C0_RP0_VM1 virtual machine.
 
 # Build Instructions
 
@@ -84,7 +85,7 @@ Tesifonte Belda (https://github.com/tesibelda)
 
 # Disclaimer
 
-The author and maintainers are not affiliated with VMware.
+The author is not affiliated with VMware.
 VMware is a registered trademark or trademark of VMware, Inc.
 
 # License
